@@ -1,0 +1,367 @@
+---
+title: "Open data platform Data Analytics"
+author: "KLD/FHL"
+execute:
+  echo: false
+format:
+  revealjs: 
+    theme: theme.scss
+    slide-number: true
+    chalkboard: 
+      buttons: false
+    preview-links: auto
+    logo: images/idb.png
+    css: styles.css
+---
+
+```{r}
+#| include: false
+
+# Import packages
+packages <- c(
+  "tidyverse",
+  "janitor",
+  "lubridate",
+  "reticulate",
+  "udpipe",
+  "wordcloud",
+  "tidytext",
+  "topicmodels",
+  "textrank",
+  "igraph",
+  "ggraph",
+  "qgraph",
+  "hrbrthemes",
+  "plotly",
+  "viridis",
+  "lubridate",
+  "wordcloud2",
+  "ggiraph",
+  "quarto")
+
+# Install packages
+sapply(packages, function(x) {
+  if (!(x %in% installed.packages())) {
+    install.packages(x, dependencies = TRUE)
+  }
+})
+
+# Load packages
+invisible(sapply(packages, require, character.only = TRUE))
+
+```
+
+
+```{r}
+#| include: false
+
+# Load data
+data_path <- file.path(
+  "/Users/brandonmora/Library/CloudStorage/OneDrive-Inter-AmericanDevelopmentBankGroup/KIC/data")
+
+socrata <- file.path(data_path, "socrata")
+
+downloads2 <- read_csv(file.path(socrata, "clean", "downloads2.csv"))
+visited_2 <- read_csv(file.path(socrata, "clean", "visited_2.csv"))
+
+donwloads_noother <- read_csv(file.path(socrata, "clean", "donwloads_noother.csv"))
+visited_noother <- read_csv(file.path(socrata, "clean", "visited_noother.csv"))
+
+stats_word_cloud <- read_csv(file.path(socrata, "clean", "stats_word_cloud.csv"))
+x_topics <- read_csv(file.path(socrata, "clean", "topic_modelling.csv"))
+topicterminology <- readRDS(file.path(socrata, "clean", "topicterminology.RData"))
+
+data_source <- read_csv(file.path(socrata, "clean", "data_source_graph.csv"))
+attribution <- read_csv(file.path(socrata, "clean", "attribution_graph.csv"))
+device_category <- read_csv(file.path(socrata, "clean", "device category_graph.csv"))
+
+data_stats <- read_csv(file.path(socrata, "clean", "data_stats_graph.csv"))
+
+```
+
+## Contents {.smaller transition="slide"}
+
+This presentation is part of the IDB Open Data Hub | Capital Project Proposal. The report presents an historical analysis of the behavior of visitors to [data.iadb.org](https://data.iadb.org), including:
+
+- Web activity
+  - Traffic sources
+  - Bounce rate
+  - New users
+- Viewed and downloaded datasets
+  - Top downloaded datasets
+  - Top viewed datasets
+- Text analysis
+  - Wordcloud
+  - Topic modeling
+
+## Traffic sources {.smaller transition="slide"}
+
+```{r}
+
+p <- ggplot(data_source, aes(y = percent, x = source, fill = source)) +
+    geom_bar(stat = "identity") +
+  scale_fill_manual(values=c(
+    "#FBB034",
+    "#E9540D",
+    "#E4032C",
+    "#81BA26",
+    "#00833E",
+    "#0B89D6",
+    "#632C4F")) +
+    labs(
+      x = "Total traffic source",
+      y = "Percent",
+      caption = "Source") +
+    theme_ipsum(grid="X") + coord_flip() +
+    theme(legend.position = "none")
+
+# Turn it interactive
+ggplotly(p, tooltip = "text")
+```
+
+The largest online traffic source for [data.iadb.org](https://data.iadb.org) are redirections from the [iadb.org](https://iadb.org) mainpage or [mydata.iadb.org](https://mydata.iadb.org) urls, wirh more than 30% of the traffic. The second largest is Google, then IDB MOOCs.
+
+
+## Device category {.smaller transition="slide"}
+
+```{r}
+# Device Category
+p <- ggplot(device_category, aes(y = percent, x = device_category, fill = device_category)) +
+    geom_bar(stat = "identity") +
+  scale_fill_manual(values=c(
+    "#FBB034",
+    "#E9540D",
+    "#E4032C")) +
+    labs(
+      x = "Total",
+      y = "Percent",
+      caption = "Source") +
+    theme_ipsum(grid="X") + coord_flip() +
+    theme(legend.position = "none")
+
+# Turn it interactive
+ggplotly(p, tooltip = "text")
+
+```
+
+Desktop represents the biggest category for accessing [data.iadb.org](https://data.iadb.org) with more than 80%. Then mobile and tablet users with less than 10% and 4% respectively.
+
+## Bounce rate {.smaller transition="slide"}
+
+```{r}
+# Bounce rate
+p <- ggplot(data = data_stats, aes(x = year, y = bounces)) +
+  geom_line(color = "#E9540D", size = 1) +
+    labs(
+      x = "Year",
+      y = "Ratio",
+      caption = "Source") +
+    theme_ipsum(grid="X") 
+
+ggplotly(p, tooltip = "text")
+```
+
+Bounce Rate is defined as the percentage of visitors that leave a webpage without taking an action. Since 2017 onwards, the bounce rate has shown a positive trend, especially in 2022.
+
+## Sessions {.smaller transition="slide"}
+
+```{r}
+# Sessions
+p <- ggplot(data = data_stats, aes(x = year, y = sessions)) +
+  geom_line(color = "#FBB034", size = 1) +
+    labs(
+      x = "Year",
+      y = "Sessions",
+      caption = "Source") +
+    theme_ipsum(grid="X") 
+
+ggplotly(p, tooltip = "text")
+```
+
+A session is a group of user interactions that take place within a given time frame. The number of sessions has been declining steadily since 2016 onwards.
+
+## Session duration {.smaller transition="slide"}
+
+```{r}
+# Session duration
+p <- ggplot(data = data_stats, aes(x = year, y = session_duration)) +
+  geom_line(color = "#00833E", size = 1) +
+    labs(
+      x = "Year",
+      y = "Seconds",
+      caption = "Source") +
+    theme_ipsum(grid="X") 
+
+ggplotly(p, tooltip = "text")
+```
+
+The session duration measured in seconds has been in the range of 62 and 70 seconds throughout the period covered.
+
+## New users {.smaller transition="slide"}
+
+```{r}
+# New users
+p <- ggplot(data = data_stats, aes(x = year, y = new_users)) +
+  geom_line(color = "#E9540D", size = 1) +
+    labs(
+      x = "Year",
+      y = "Users",
+      caption = "Source") +
+    theme_ipsum(grid="X") 
+
+ggplotly(p, tooltip = "text")
+```
+
+A new user is a visitor who has never been to your site before and is initiating their first session. The number of new users has been in decline since 2017 onwards.
+
+## Total pageviews {.smaller transition="slide"}
+
+```{r}
+# Pageviews
+p <- ggplot(data = data_stats, aes(x = year, y = pageviews)) +
+  geom_line(color = "#632C4F", size = 1) +
+    labs(
+      x = "Pageviews",
+      y = "Users",
+      caption = "Source") +
+    theme_ipsum(grid="X")
+
+ggplotly(p, tooltip = "text")
+```
+
+Pageviews is the total number of pages viewed (an instance of a page being loaded (or reloaded) in a browser.) The total pageviews has also been declining throughout the period covered.
+
+## Top downloaded datasets {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+p <- ggplot(downloads2, aes(fill = name, y = value, x = year)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis(option = "G", discrete = TRUE, direction = -1)  +
+    labs(
+      x = "Year",
+      y = "Downloads",
+      caption = "Source") +
+    theme_ipsum(grid="X")
+
+# Turn it interactive
+ggplotly(p, tooltip = "text")
+
+```
+
+2021 is the year with most downloaded datasets, this correlates with the datasets' date of publication. Most of which were in 2021. Meanwhile, both 2020 and 2022 have the Database of Political Institutions as their most downloaded dataset.
+
+## Top viewed datasets {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+p <- ggplot(visited_noother, aes(fill = name, y = value, x = year)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis(option = "G", discrete = TRUE, direction = -1)  +
+    labs(
+      x = "Year",
+      y = "Views",
+      caption = "Source") +
+    theme_ipsum(grid="X")
+
+# Turn it interactive
+ggplotly(p, tooltip = "text")
+
+```
+
+Both 2020 and 2021 show the most popular datasets, including flagship datasets such as Agrimonitor, SIMS, and others such as the Database of Political Institutions and DIA 2011.
+
+## Top viewed (including other datasets) {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+
+p <- ggplot(visited_2, aes(fill = name, y = value, x = year)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis(option = "G", discrete = TRUE, direction = -1) +
+    #theme(legend.position = "none") +
+    ggtitle("") +
+    theme_ipsum()  +
+    labs(
+      x = "Year",
+      y = "Views",
+      caption = "Source") +
+    theme_ipsum(grid="X")
+
+# Turn it interactive
+ggplotly(p, tooltip = "text")
+```
+
+Apart from the most popular datasets, individuals also visit other datasets within the IADB's catalog.
+
+## Wordcloud of most searched terms {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+wordcloud2(stats_word_cloud)
+
+```
+
+Most searched terms included development, data and knowledge.
+
+## Topic modeling (Intro) {.smaller transition="slide"}
+
+Topic modeling is a type of statistical modeling for discovering the abstract “topics” that occur in a collection of documents. To get a sense of the topics searched in [data.iadb.org](https://data.iadb.org), we perform Latent Dirichlet Allocation (LDA) to classify search terms in three groups:
+
+- Topic 1: Knowledge and ability
+- Topic 2: Development and technology
+- Topic 3: Systems and information
+
+## Topic modeling (Topic 1)  {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+wordnetwork <- subset(x_topics, topic %in% 1 & lemma %in% topicterminology[[1]]$term)
+wordnetwork <- cooccurrence(wordnetwork, group = c("topic_level_id"), term = "lemma")
+wordnetwork <- graph_from_data_frame(wordnetwork)
+
+ggraph(wordnetwork, layout = "fr") +
+  geom_edge_link(aes(width = cooc, edge_alpha = cooc), alpha=0.2,color="grey",show.legend = F) +
+  geom_node_text(aes(label = name), col = "darkgreen", size = 4) +
+  theme_graph(base_family = "Arial Narrow")
+  # labs(subtitle = "Nouns & Adjective cooccurrence")
+
+```
+
+## Topic modeling (Topic 2) {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+wordnetwork <- subset(x_topics, topic %in% 2 & lemma %in% topicterminology[[2]]$term)
+wordnetwork <- cooccurrence(wordnetwork, group = c("topic_level_id"), term = "lemma")
+wordnetwork <- graph_from_data_frame(wordnetwork)
+
+ggraph(wordnetwork, layout = "fr") +
+  geom_edge_link(aes(width = cooc, edge_alpha = cooc),alpha=0.2,color="grey",show.legend = F) +
+  geom_node_text(aes(label = name), col = "darkgreen", size = 4) +
+  theme_graph(base_family = "Arial Narrow") +
+  labs(subtitle = "Nouns & Adjective cooccurrence")
+
+```
+
+## Topic modeling (Topic 3) {.smaller transition="slide"}
+
+```{r}
+#| warning: false
+
+wordnetwork <- subset(x_topics, topic %in% 3 & lemma %in% topicterminology[[3]]$term)
+wordnetwork <- cooccurrence(wordnetwork, group = c("topic_level_id"), term = "lemma")
+wordnetwork <- graph_from_data_frame(wordnetwork)
+
+ggraph(wordnetwork, layout = "fr") +
+  geom_edge_link(aes(width = cooc, edge_alpha = cooc), alpha=0.2,color="grey",show.legend = F) +
+  geom_node_text(aes(label = name), col = "darkgreen", size = 4) +
+  theme_graph(base_family = "Arial Narrow") 
+
+```
+
